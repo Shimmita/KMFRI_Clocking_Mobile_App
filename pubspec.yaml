@@ -1,0 +1,55 @@
+name: mobile_app_clocking
+description: KMFRI Clocking mobile application.
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.13.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Online KMFRI system
+  webview_flutter: ^4.14.1
+  webview_flutter_android: ^4.0.0
+
+  # Network detection
+  connectivity_plus: ^7.3.2
+
+  # Native device authentication
+  local_auth: ^3.0.2
+
+  # Secure device/account storage
+  flutter_secure_storage: ^11.2.0
+
+  cupertino_icons: ^1.0.8
+  flutter_bloc: ^9.1.1
+  crypto: ^3.0.7
+  device_info_plus: ^13.3.0
+  package_info_plus: ^10.2.2
+  geolocator: ^14.0.1
+  permission_handler: ^12.0.1
+  pdf: ^3.11.1
+  printing: ^5.13.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - android/app/src/main/res/raw/sectigo_public_server_authentication_root_r46.pem
+    - assets/icon/
