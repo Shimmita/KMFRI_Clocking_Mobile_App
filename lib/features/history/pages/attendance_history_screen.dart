@@ -30,6 +30,9 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
   List<AttendanceHistoryRecord> _records = [];
   bool _isLoading = true;
   String? _errorMessage;
+  DateTime? _fromDate;
+  DateTime? _toDate;
+  _AttendanceStatusFilter _statusFilter = _AttendanceStatusFilter.all;
 
   @override
   void initState() {
@@ -71,13 +74,16 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
       pw.MemoryImage? kmfriImage;
       pw.MemoryImage? govImage;
       try {
-        final kmfriLogoBytes =
-            await rootBundle.load('assets/images/kmfri_logo.png');
+        final kmfriLogoBytes = await rootBundle.load(
+          'assets/images/kmfri_logo.png',
+        );
         kmfriImage = pw.MemoryImage(kmfriLogoBytes.buffer.asUint8List());
       } catch (_) {}
 
       try {
-        final govLogoBytes = await rootBundle.load('assets/images/gov_logo.png');
+        final govLogoBytes = await rootBundle.load(
+          'assets/images/gov_logo.png',
+        );
         govImage = pw.MemoryImage(govLogoBytes.buffer.asUint8List());
       } catch (_) {}
 
@@ -175,14 +181,13 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
             ),
             pw.SizedBox(height: 18),
             pw.TableHelper.fromTextArray(
-              headers: ['Date', 'Clock In', 'Clock Out', 'Status'],
-              data: _records
+              headers: ['Date', 'Clock In', 'Clock Out'],
+              data: _filteredRecords
                   .map(
                     (record) => [
                       _formatDate(record.date),
                       record.clockInLabel,
                       record.clockOutLabel,
-                      record.missedClockOut ? 'Missed Out' : 'Present',
                     ],
                   )
                   .toList(),
@@ -200,7 +205,6 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                 0: pw.Alignment.centerLeft,
                 1: pw.Alignment.center,
                 2: pw.Alignment.center,
-                3: pw.Alignment.center,
               },
             ),
           ],
@@ -213,11 +217,66 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to export PDF: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to export PDF: $e')));
       }
     }
+  }
+
+  List<AttendanceHistoryRecord> get _filteredRecords {
+    return _records.where((record) {
+      final date = record.date.toLocal();
+      if (_fromDate != null &&
+          DateTime(date.year, date.month, date.day).isBefore(_fromDate!)) {
+        return false;
+      }
+      if (_toDate != null &&
+          DateTime(date.year, date.month, date.day).isAfter(_toDate!)) {
+        return false;
+      }
+      switch (_statusFilter) {
+        case _AttendanceStatusFilter.present:
+          return !record.missedClockOut;
+        case _AttendanceStatusFilter.missedOut:
+          return record.missedClockOut;
+        case _AttendanceStatusFilter.all:
+          return true;
+      }
+    }).toList();
+  }
+
+  Future<void> _pickDate({required bool isFromDate}) async {
+    final initialDate = isFromDate
+        ? _fromDate ?? DateTime.now()
+        : _toDate ?? _fromDate ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isFromDate) {
+        _fromDate = DateTime(picked.year, picked.month, picked.day);
+        if (_toDate != null && _toDate!.isBefore(_fromDate!)) {
+          _toDate = _fromDate;
+        }
+      } else {
+        _toDate = DateTime(picked.year, picked.month, picked.day);
+        if (_fromDate != null && _toDate!.isBefore(_fromDate!)) {
+          _fromDate = _toDate;
+        }
+      }
+    });
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _fromDate = null;
+      _toDate = null;
+      _statusFilter = _AttendanceStatusFilter.all;
+    });
   }
 
   String _formatDate(DateTime date) {
@@ -256,7 +315,7 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
         actions: [
           IconButton(
             tooltip: 'Download PDF Report',
-            onPressed: _records.isEmpty ? null : _exportPdf,
+            onPressed: _filteredRecords.isEmpty ? null : _exportPdf,
             icon: const Icon(Icons.picture_as_pdf_rounded),
           ),
           IconButton(
@@ -341,16 +400,138 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                   ),
                 ),
               )
-            : ListView.builder(
-                padding: const EdgeInsets.all(20),
-                itemCount: _records.length,
-                itemBuilder: (context, index) {
-                  final record = _records[index];
-                  return _historyCard(record);
-                },
+            : Column(
+                children: [
+                  _buildFilters(),
+                  Expanded(
+                    child: _filteredRecords.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(
+                                    Icons.filter_alt_off_rounded,
+                                    size: 42,
+                                    color: Color(0xFF667085),
+                                  ),
+                                  SizedBox(height: 12),
+                                  Text(
+                                    'No records match these filters',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF0A3D62),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                            itemCount: _filteredRecords.length,
+                            itemBuilder: (context, index) =>
+                                _historyCard(_filteredRecords[index]),
+                          ),
+                  ),
+                ],
               ),
       ),
     );
+  }
+
+  Widget _buildFilters() {
+    final filtersActive =
+        _fromDate != null ||
+        _toDate != null ||
+        _statusFilter != _AttendanceStatusFilter.all;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8EEF7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'FILTER REPORT',
+                  style: TextStyle(
+                    color: Color(0xFF0A3D62),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: filtersActive ? _clearFilters : null,
+                child: const Text('CLEAR'),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickDate(isFromDate: true),
+                  icon: const Icon(Icons.calendar_today_rounded, size: 18),
+                  label: Text(
+                    _fromDate == null ? 'From date' : _formatDate(_fromDate!),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _pickDate(isFromDate: false),
+                  icon: const Icon(Icons.event_rounded, size: 18),
+                  label: Text(
+                    _toDate == null ? 'To date' : _formatDate(_toDate!),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: _AttendanceStatusFilter.values.map((filter) {
+              final selected = _statusFilter == filter;
+              return ChoiceChip(
+                label: Text(_statusLabel(filter)),
+                selected: selected,
+                onSelected: (_) => setState(() => _statusFilter = filter),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${_filteredRecords.length} of ${_records.length} records',
+            style: const TextStyle(color: Color(0xFF667085), fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _statusLabel(_AttendanceStatusFilter filter) {
+    switch (filter) {
+      case _AttendanceStatusFilter.all:
+        return 'All';
+      case _AttendanceStatusFilter.present:
+        return 'Present';
+      case _AttendanceStatusFilter.missedOut:
+        return 'Missed Out';
+    }
   }
 
   Widget _historyCard(AttendanceHistoryRecord record) {
@@ -397,6 +578,18 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
                     fontSize: 13,
                   ),
                 ),
+                if (record.clockInLocationName != null ||
+                    record.clockOutLocationName != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Location: ${record.clockInLocationName ?? 'In Premise'}'
+                    '${record.clockOutLocationName == null || record.clockOutLocationName == record.clockInLocationName ? '' : ' • Out: ${record.clockOutLocationName}'}',
+                    style: const TextStyle(
+                      color: Color(0xFF667085),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -424,3 +617,5 @@ class _AttendanceHistoryScreenState extends State<AttendanceHistoryScreen> {
     );
   }
 }
+
+enum _AttendanceStatusFilter { all, present, missedOut }

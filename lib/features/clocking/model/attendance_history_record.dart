@@ -4,12 +4,22 @@ class AttendanceHistoryRecord {
     required this.clockIn,
     required this.clockOut,
     required this.missedClockOut,
+    this.clockInWithinPremise,
+    this.clockOutWithinPremise,
+    this.clockInLocationName,
+    this.clockOutLocationName,
+    this.outsideLocation,
   });
 
   final DateTime date;
   final DateTime clockIn;
   final DateTime? clockOut;
   final bool missedClockOut;
+  final bool? clockInWithinPremise;
+  final bool? clockOutWithinPremise;
+  final String? clockInLocationName;
+  final String? clockOutLocationName;
+  final String? outsideLocation;
 
   String get clockOutLabel =>
       clockOut == null || missedClockOut ? 'System' : _formatTime(clockOut!);
@@ -36,6 +46,15 @@ class AttendanceHistoryRecord {
       clockIn: clockIn,
       clockOut: clockOut,
       missedClockOut: json['missedClockOut'] == true,
+      clockInWithinPremise: json['clockInWithinPremise'] == null
+          ? null
+          : json['clockInWithinPremise'] == true,
+      clockOutWithinPremise: json['clockOutWithinPremise'] == null
+          ? null
+          : json['clockOutWithinPremise'] == true,
+      clockInLocationName: json['clockInLocationName']?.toString(),
+      clockOutLocationName: json['clockOutLocationName']?.toString(),
+      outsideLocation: json['outsideLocation']?.toString(),
     );
   }
 

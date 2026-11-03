@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 
 class ReverseGeocodingService {
   ReverseGeocodingService({HttpClient? httpClient})
-      : _httpClient = httpClient ?? HttpClient();
+    : _httpClient = httpClient ?? HttpClient();
 
   final HttpClient _httpClient;
 
@@ -14,18 +14,20 @@ class ReverseGeocodingService {
 
   Future<String> reverseGeocode(double latitude, double longitude) async {
     try {
-      final uri = Uri.parse(_primaryUrl).replace(queryParameters: {
-        'latitude': latitude.toString(),
-        'longitude': longitude.toString(),
-        'localityLanguage': 'en',
-      });
+      final uri = Uri.parse(_primaryUrl).replace(
+        queryParameters: {
+          'latitude': latitude.toString(),
+          'longitude': longitude.toString(),
+          'localityLanguage': 'en',
+        },
+      );
 
-      final request = await _httpClient.getUrl(uri).timeout(
-            const Duration(seconds: 8),
-          );
+      final request = await _httpClient
+          .getUrl(uri)
+          .timeout(const Duration(seconds: 8));
       final response = await request.close().timeout(
-            const Duration(seconds: 8),
-          );
+        const Duration(seconds: 8),
+      );
 
       if (response.statusCode == 200) {
         final body = await response.transform(utf8.decoder).join();
@@ -38,18 +40,51 @@ class ReverseGeocodingService {
         }
       }
     } catch (e) {
-      debugPrint('Reverse geocoding error: $e');
+      debugPrint('Primary reverse geocoding error: $e');
+    }
+
+    try {
+      final uri = Uri.parse('https://nominatim.openstreetmap.org/reverse')
+          .replace(
+            queryParameters: {
+              'format': 'jsonv2',
+              'lat': latitude.toString(),
+              'lon': longitude.toString(),
+              'zoom': '18',
+              'addressdetails': '1',
+            },
+          );
+      final request = await _httpClient
+          .getUrl(uri)
+          .timeout(const Duration(seconds: 8));
+      request.headers.set(
+        HttpHeaders.userAgentHeader,
+        'KMFRI_Attendance_App/1.0',
+      );
+      final response = await request.close().timeout(
+        const Duration(seconds: 8),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(await response.transform(utf8.decoder).join());
+        if (data is Map<String, dynamic>) {
+          final formatted = _extractFromNominatim(data);
+          if (formatted != 'unknown') return formatted;
+        }
+      }
+    } catch (e) {
+      debugPrint('Nominatim reverse geocoding error: $e');
     }
     return 'unknown';
   }
 
   String _extractFromPrimaryProvider(Map<String, dynamic> data) {
     try {
-      final principalSubdivision = (data['principalSubdivision'] ??
-              data['city'] ??
-              data['locality'] ??
-              '')
-          .toString();
+      final principalSubdivision =
+          (data['principalSubdivision'] ??
+                  data['city'] ??
+                  data['locality'] ??
+                  '')
+              .toString();
       final county = _cleanName(principalSubdivision, ['County']);
 
       final admin = data['localityInfo']?['administrative'];
@@ -72,10 +107,11 @@ class ReverseGeocodingService {
         }
       }
 
-      final parts = [county, locality, ward]
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
+      final parts = [
+        county,
+        locality,
+        ward,
+      ].map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
 
       return parts.isNotEmpty ? parts.join('.') : 'unknown';
     } catch (e) {
@@ -83,11 +119,44 @@ class ReverseGeocodingService {
     }
   }
 
+  String _extractFromNominatim(Map<String, dynamic> data) {
+    final address = data['address'];
+    if (address is! Map<String, dynamic>) return 'unknown';
+
+    final county = _cleanName(
+      (address['state'] ?? address['region'] ?? '').toString(),
+      ['County'],
+    );
+    final locality = _cleanName(
+      (address['county'] ?? address['subcounty'] ?? '').toString(),
+      [],
+    );
+    final ward = _cleanName(
+      (address['city'] ??
+              address['suburb'] ??
+              address['village'] ??
+              address['town'] ??
+              address['hamlet'] ??
+              '')
+          .toString(),
+      ['Ward'],
+    );
+
+    final parts = [
+      county,
+      locality,
+      ward,
+    ].map((value) => value.trim()).where((value) => value.isNotEmpty).toList();
+    return parts.length >= 2 ? parts.join('.') : 'unknown';
+  }
+
   String _cleanName(String value, List<String> wordsToRemove) {
     var result = value;
     for (final word in wordsToRemove) {
-      result =
-          result.replaceAll(RegExp('\\b$word\\b', caseSensitive: false), '');
+      result = result.replaceAll(
+        RegExp('\\b$word\\b', caseSensitive: false),
+        '',
+      );
     }
     result = result.trim();
     if (result.isEmpty) return '';

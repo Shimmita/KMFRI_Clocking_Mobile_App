@@ -58,9 +58,15 @@ class _MobileAppViewState extends State<MobileAppView> {
               device: state.device!,
               identity: state.identity!,
               isOnline: widget.isOnline,
-              onSignOut: () => context.read<MobileAuthCubit>().signOut(
-                isOnline: widget.isOnline,
-              ),
+              onSignOut: () {
+                final navigator = Navigator.of(context);
+                if (navigator.canPop()) {
+                  navigator.popUntil((route) => route.isFirst);
+                }
+                context.read<MobileAuthCubit>().signOut(
+                  isOnline: widget.isOnline,
+                );
+              },
             );
         }
       },

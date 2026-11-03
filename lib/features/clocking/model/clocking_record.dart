@@ -9,6 +9,10 @@ class ClockingRecord {
     this.station = '',
     this.latitude,
     this.longitude,
+    this.outsideLocation,
+    this.locationName,
+    this.clockedOutside = false,
+    this.withinPremise,
     this.syncStatus = 'pending',
     this.syncMessage,
     this.createdAt,
@@ -23,6 +27,10 @@ class ClockingRecord {
   final String station;
   final double? latitude;
   final double? longitude;
+  final String? outsideLocation;
+  final String? locationName;
+  final bool clockedOutside;
+  final bool? withinPremise;
   final String syncStatus;
   final String? syncMessage;
   final DateTime? createdAt;
@@ -33,7 +41,9 @@ class ClockingRecord {
   factory ClockingRecord.fromJson(Map<String, dynamic> json) {
     final eventAt = DateTime.tryParse((json['eventAt'] ?? '').toString());
     if (eventAt == null) {
-      throw const FormatException('The saved clocking record has an invalid time.');
+      throw const FormatException(
+        'The saved clocking record has an invalid time.',
+      );
     }
     return ClockingRecord(
       type: (json['type'] ?? '').toString(),
@@ -45,6 +55,12 @@ class ClockingRecord {
       station: (json['station'] ?? '').toString(),
       latitude: _asDouble(json['latitude']),
       longitude: _asDouble(json['longitude']),
+      outsideLocation: json['outsideLocation']?.toString(),
+      locationName: json['locationName']?.toString(),
+      clockedOutside: json['clockedOutside'] == true,
+      withinPremise: json['withinPremise'] == null
+          ? null
+          : json['withinPremise'] == true,
       syncStatus: (json['syncStatus'] ?? 'pending').toString(),
       syncMessage: json['syncMessage']?.toString(),
       createdAt: DateTime.tryParse((json['createdAt'] ?? '').toString()),
@@ -61,6 +77,10 @@ class ClockingRecord {
     'station': station,
     'latitude': latitude,
     'longitude': longitude,
+    'outsideLocation': outsideLocation,
+    'locationName': locationName,
+    'clockedOutside': clockedOutside,
+    'withinPremise': withinPremise,
     'syncStatus': syncStatus,
     'syncMessage': syncMessage,
     'createdAt': (createdAt ?? time).toUtc().toIso8601String(),
@@ -73,9 +93,17 @@ class ClockingRecord {
     'eventAt': time.toUtc().toIso8601String(),
     'selectedStation': station,
     'userCoords': {'latitude': latitude, 'longitude': longitude},
+    'outsideLocation': outsideLocation,
   };
 
   ClockingRecord copyWith({
+    String? outsideLocation,
+    bool clearOutsideLocation = false,
+    String? locationName,
+    bool clearLocationName = false,
+    bool? clockedOutside,
+    bool? withinPremise,
+    bool clearWithinPremise = false,
     String? syncStatus,
     String? syncMessage,
     bool clearSyncMessage = false,
@@ -89,6 +117,14 @@ class ClockingRecord {
     station: station,
     latitude: latitude,
     longitude: longitude,
+    outsideLocation: clearOutsideLocation
+        ? null
+        : outsideLocation ?? this.outsideLocation,
+    locationName: clearLocationName ? null : locationName ?? this.locationName,
+    clockedOutside: clockedOutside ?? this.clockedOutside,
+    withinPremise: clearWithinPremise
+        ? null
+        : withinPremise ?? this.withinPremise,
     syncStatus: syncStatus ?? this.syncStatus,
     syncMessage: clearSyncMessage ? null : syncMessage ?? this.syncMessage,
     createdAt: createdAt,

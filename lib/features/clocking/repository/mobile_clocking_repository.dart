@@ -12,18 +12,22 @@ import '../model/clocking_record.dart';
 import '../model/mobile_attendance_context.dart';
 import '../model/mobile_holiday_status.dart';
 import '../service/geofence_distance.dart';
+import '../service/reverse_geocoding_service.dart';
 
 class MobileClockingRepository {
   MobileClockingRepository(
     this._api, {
     FlutterSecureStorage? storage,
     GeolocatorPlatform? geolocator,
+    ReverseGeocodingService? reverseGeocodingService,
   }) : _storage = storage ?? const FlutterSecureStorage(),
-       _geolocator = geolocator ?? GeolocatorPlatform.instance;
+       _geolocator = geolocator ?? GeolocatorPlatform.instance,
+       _reverseGeocoding = reverseGeocodingService ?? ReverseGeocodingService();
 
   final MobileApiService _api;
   final FlutterSecureStorage _storage;
   final GeolocatorPlatform _geolocator;
+  final ReverseGeocodingService _reverseGeocoding;
 
   String _contextKey(String userId) => 'kmfri.attendance.context.$userId';
   String _recordPrefix(String userId) => 'kmfri.attendance.record.$userId.';
@@ -159,6 +163,14 @@ class MobileClockingRepository {
       );
     }
 
+    String? outsideLocation;
+    if (!isWithinGeofence && position != null && context.canClockOutside) {
+      outsideLocation = await _resolveOutsideLocation(
+        position.latitude,
+        position.longitude,
+      );
+    }
+
     final time = DateTime.now().toUtc();
     final record = ClockingRecord(
       type: action == 'clock_in' ? 'CLOCK IN' : 'CLOCK OUT',
@@ -170,6 +182,7 @@ class MobileClockingRepository {
       station: context.stationName,
       latitude: position?.latitude,
       longitude: position?.longitude,
+      outsideLocation: outsideLocation,
       syncStatus: 'pending',
       createdAt: time,
     );
@@ -185,13 +198,75 @@ class MobileClockingRepository {
   }
 
   Future<void> synchronize(ClockingRecord record) async {
-    final response = await _api.synchronizeAttendance(record.toSyncJson());
+    var resolvedRecord = record;
+    final context = await loadContext(record.userId);
+    if (record.latitude != null &&
+        record.longitude != null &&
+        context != null &&
+        context.geofenceEnabled &&
+        context.canClockOutside &&
+        !_isWithinCoordinates(context, record.latitude!, record.longitude!) &&
+        (record.outsideLocation == null ||
+            record.outsideLocation!.trim().isEmpty)) {
+      final outsideLocation = await _resolveOutsideLocation(
+        record.latitude!,
+        record.longitude!,
+      );
+      if (outsideLocation != null) {
+        resolvedRecord = record.copyWith(outsideLocation: outsideLocation);
+        await saveRecord(resolvedRecord);
+      }
+    }
+
+    if (context != null &&
+        context.geofenceEnabled &&
+        context.canClockOutside &&
+        record.latitude != null &&
+        record.longitude != null &&
+        !_isWithinCoordinates(context, record.latitude!, record.longitude!) &&
+        (resolvedRecord.outsideLocation == null ||
+            resolvedRecord.outsideLocation!.trim().isEmpty)) {
+      throw const FormatException(
+        'Outside clocking place could not be resolved. Restore connectivity and try again.',
+      );
+    }
+
+    final response = await _api.synchronizeAttendance(
+      resolvedRecord.toSyncJson(),
+    );
     if (response['success'] != true || response['synced'] != true) {
       throw const FormatException(
         'KMFRI did not confirm synchronization of the attendance record.',
       );
     }
+
+    final attendance = response['attendance'] is Map<String, dynamic>
+        ? response['attendance'] as Map<String, dynamic>
+        : response['meta'] is Map<String, dynamic>
+        ? response['meta'] as Map<String, dynamic>
+        : null;
+    if (attendance != null) {
+      final clockedOutside = attendance['clockedOutside'] == true;
+      final serverOutsideLocation = attendance['outsideLocation']
+          ?.toString()
+          .trim();
+      final resolvedLocation =
+          serverOutsideLocation == null || serverOutsideLocation.isEmpty
+          ? null
+          : serverOutsideLocation;
+      resolvedRecord = resolvedRecord.copyWith(
+        clearOutsideLocation: !clockedOutside,
+        outsideLocation: resolvedLocation,
+        locationName: clockedOutside ? resolvedLocation : 'In Premise',
+        clockedOutside: clockedOutside,
+        withinPremise: !clockedOutside,
+      );
+      await saveRecord(resolvedRecord);
+    }
   }
+
+  Future<String?> readSavedAccountPassword(String userId) =>
+      _api.readSavedAccountPassword(userId);
 
   Future<void> reauthenticateForSynchronization({
     required String userId,
@@ -305,7 +380,14 @@ class MobileClockingRepository {
     );
   }
 
-  bool _isWithinGeofence(MobileAttendanceContext context, Position position) {
+  bool _isWithinGeofence(MobileAttendanceContext context, Position position) =>
+      _isWithinCoordinates(context, position.latitude, position.longitude);
+
+  bool _isWithinCoordinates(
+    MobileAttendanceContext context,
+    double latitude,
+    double longitude,
+  ) {
     if (!context.geofenceEnabled) return true;
     if (context.radiusMeters <= 0 ||
         (context.stationLatitude == 0 && context.stationLongitude == 0)) {
@@ -313,12 +395,40 @@ class MobileClockingRepository {
     }
 
     final distance = GeofenceDistance.metersBetween(
-      position.latitude,
-      position.longitude,
+      latitude,
+      longitude,
       context.stationLatitude,
       context.stationLongitude,
     );
     return distance <= context.radiusMeters;
+  }
+
+  Future<String?> _resolveOutsideLocation(
+    double latitude,
+    double longitude,
+  ) async {
+    try {
+      final location = await _reverseGeocoding.reverseGeocode(
+        latitude,
+        longitude,
+      );
+      final normalized = location.trim();
+      if (normalized.isEmpty ||
+          normalized.toLowerCase() == 'unknown' ||
+          RegExp(
+            r'^off[- ]?premise$',
+            caseSensitive: false,
+          ).hasMatch(normalized) ||
+          RegExp(
+            r'^outside premises?$',
+            caseSensitive: false,
+          ).hasMatch(normalized)) {
+        return null;
+      }
+      return normalized;
+    } catch (_) {
+      return null;
+    }
   }
 
   int _compareRecordTime(ClockingRecord left, ClockingRecord right) {

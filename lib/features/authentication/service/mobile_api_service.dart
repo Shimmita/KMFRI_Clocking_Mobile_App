@@ -50,6 +50,8 @@ class MobileApiService {
   static const _deviceIdKey = 'kmfri.mobile.device_id';
   static const _onboardingKey = 'kmfri.mobile.onboarding_completed';
   static const _rememberedAccountsKey = 'kmfri.mobile.remembered_accounts';
+  static String _savedAccountPasswordKey(String userId) =>
+      'kmfri.mobile.saved_password.$userId';
 
   final FlutterSecureStorage _storage;
   final HttpClient _httpClient;
@@ -260,6 +262,10 @@ class MobileApiService {
       key: _rememberedAccountsKey,
       value: jsonEncode(filtered.map((entry) => entry.toJson()).toList()),
     );
+    await _storage.write(
+      key: _savedAccountPasswordKey(user.id),
+      value: password,
+    );
   }
 
   Future<List<RememberedAccount>> readRememberedAccounts() async {
@@ -289,6 +295,9 @@ class MobileApiService {
     return null;
   }
 
+  Future<String?> readSavedAccountPassword(String userId) =>
+      _storage.read(key: _savedAccountPasswordKey(userId));
+
   Future<bool> verifyRememberedAccountPassword(
     String userId,
     String password,
@@ -315,13 +324,17 @@ class MobileApiService {
         .where((account) => account.userId != userId)
         .toList();
     if (filtered.isEmpty) {
-      await _storage.delete(key: _rememberedAccountsKey);
+      await Future.wait([
+        _storage.delete(key: _rememberedAccountsKey),
+        _storage.delete(key: _savedAccountPasswordKey(userId)),
+      ]);
       return;
     }
     await _storage.write(
       key: _rememberedAccountsKey,
       value: jsonEncode(filtered.map((entry) => entry.toJson()).toList()),
     );
+    await _storage.delete(key: _savedAccountPasswordKey(userId));
   }
 
   Future<String?> readDeviceId() => _storage.read(key: _deviceIdKey);

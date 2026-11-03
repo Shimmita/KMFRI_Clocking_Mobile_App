@@ -3,25 +3,19 @@ import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../model/authentication_result.dart';
 import '../model/mobile_device.dart';
 import '../model/remembered_account.dart';
-import '../repository/authentication_repository.dart';
 import '../repository/mobile_auth_repository.dart';
 import '../service/mobile_api_service.dart';
 import '../service/permission_service.dart';
 import 'mobile_auth_state.dart';
 
 class MobileAuthCubit extends Cubit<MobileAuthState> {
-  MobileAuthCubit(
-    this._repository,
-    this._localAuthentication, {
-    PermissionService? permissionService,
-  }) : _permissionService = permissionService ?? PermissionService(),
-       super(const MobileAuthState());
+  MobileAuthCubit(this._repository, {PermissionService? permissionService})
+    : _permissionService = permissionService ?? PermissionService(),
+      super(const MobileAuthState());
 
   final MobileAuthRepository _repository;
-  final AuthenticationRepository _localAuthentication;
   final PermissionService _permissionService;
 
   MobileAuthState? _postOnboardingState;
@@ -118,16 +112,6 @@ class MobileAuthCubit extends Cubit<MobileAuthState> {
         deviceId = device.id;
       }
 
-      final localResult = await _localAuthentication.authenticate();
-      if (localResult != AuthenticationResult.authenticated) {
-        return MobileAuthState(
-          phase: MobileAuthPhase.signedOut,
-          identity: identity,
-          isOffline: !isOnline,
-          errorMessage: _localAuthenticationMessage(localResult),
-        );
-      }
-
       if (deviceId == null) {
         await _repository.clearSession();
         return MobileAuthState(
@@ -191,17 +175,16 @@ class MobileAuthCubit extends Cubit<MobileAuthState> {
         return;
       }
 
-      final passwordValid = await _repository.verifyRememberedAccountPassword(
-        userId,
-        password,
-      );
-      if (!passwordValid) {
+      final savedPassword = await _repository.readSavedAccountPassword(userId);
+      final effectivePassword = savedPassword ?? password;
+      if (effectivePassword.isEmpty) {
         emit(
           state.copyWith(
             phase: MobileAuthPhase.signedOut,
             isBusy: false,
             isOffline: !isOnline,
-            errorMessage: 'The password did not match this saved account.',
+            errorMessage:
+                'Enter the account password to restore this saved account.',
           ),
         );
         return;
@@ -222,21 +205,6 @@ class MobileAuthCubit extends Cubit<MobileAuthState> {
         return;
       }
 
-      final localResult = await _localAuthentication.authenticate();
-      if (localResult != AuthenticationResult.authenticated) {
-        _clearPendingCredentials();
-        await _repository.clearSession();
-        emit(
-          state.copyWith(
-            phase: MobileAuthPhase.signedOut,
-            isBusy: false,
-            isOffline: !isOnline,
-            errorMessage: _localAuthenticationMessage(localResult),
-          ),
-        );
-        return;
-      }
-
       final authIsStaff = account.usesStaffSignIn;
       final username = account.authUsername.isNotEmpty
           ? account.authUsername
@@ -248,7 +216,7 @@ class MobileAuthCubit extends Cubit<MobileAuthState> {
         final authenticatedUser = await _repository.signIn(
           isStaff: authIsStaff,
           username: username,
-          password: password,
+          password: effectivePassword,
           installationId: identity.installationId,
         );
         if (authenticatedUser.id != account.userId) {
@@ -267,7 +235,7 @@ class MobileAuthCubit extends Cubit<MobileAuthState> {
 
         final result = await _repository.checkDevice(identity.installationId);
         if (!result.enrolled || result.device == null) {
-          _pendingPassword = password;
+          _pendingPassword = effectivePassword;
           _pendingUsername = username;
           _pendingIsStaff = authIsStaff;
           emit(
@@ -296,7 +264,7 @@ class MobileAuthCubit extends Cubit<MobileAuthState> {
         await _repository.saveUser(authenticatedUser);
         await _repository.saveRememberedAccount(
           user: authenticatedUser,
-          password: password,
+          password: effectivePassword,
           deviceId: result.device!.id,
           installationId: identity.installationId,
           authUsername: username,
@@ -371,19 +339,6 @@ class MobileAuthCubit extends Cubit<MobileAuthState> {
       }
 
       final identity = await _repository.getDeviceIdentity();
-      final localResult = await _localAuthentication.authenticate();
-      if (localResult != AuthenticationResult.authenticated) {
-        emit(
-          state.copyWith(
-            phase: MobileAuthPhase.signedOut,
-            isBusy: false,
-            isOffline: true,
-            errorMessage: _localAuthenticationMessage(localResult),
-          ),
-        );
-        return;
-      }
-
       final user = account.toMobileUser();
       await _repository.saveUser(user);
 
@@ -446,20 +401,6 @@ class MobileAuthCubit extends Cubit<MobileAuthState> {
       final result = await _repository.checkDevice(identity.installationId);
       if (result.enrolled) {
         final device = result.device!;
-        final localResult = await _localAuthentication.authenticate();
-        if (localResult != AuthenticationResult.authenticated) {
-          _clearPendingCredentials();
-          await _repository.clearSession();
-          emit(
-            state.copyWith(
-              phase: MobileAuthPhase.signedOut,
-              isBusy: false,
-              isOffline: false,
-              errorMessage: 'Authentication failed. Device authentication was not completed. You have not been signed in.',
-            ),
-          );
-          return;
-        }
         await _repository.saveUser(user);
         if (_pendingPassword != null) {
           await _repository.saveRememberedAccount(
@@ -631,23 +572,31 @@ class MobileAuthCubit extends Cubit<MobileAuthState> {
   Future<void> signOut({required bool isOnline}) async {
     final identity = state.identity;
     _clearPendingCredentials();
-    String? signOutError;
-    try {
-      if (isOnline) await _repository.signOut();
-    } catch (error) {
-      signOutError =
-          'The server sign-out could not be confirmed. The local session was cleared. ($error)';
-    } finally {
-      await _repository.clearSession();
-    }
+
+    // Local sign-out must never wait for the server. Emit signed-out first so
+    // tapping Sign Out consistently returns to the account screen immediately.
     emit(
       MobileAuthState(
         phase: MobileAuthPhase.signedOut,
         identity: identity,
         isOffline: !isOnline,
-        errorMessage: signOutError,
       ),
     );
+
+    try {
+      await _repository.clearSession();
+    } catch (_) {
+      // The UI is already signed out. A remembered account remains available
+      // for direct sign-in even if one secure-storage deletion fails.
+    }
+
+    if (isOnline) {
+      try {
+        await _repository.signOut().timeout(const Duration(seconds: 8));
+      } catch (_) {
+        // Server cleanup is best effort; it must not block or undo sign-out.
+      }
+    }
   }
 
   Future<MobileAuthState?> _getOfflineSessionState() async {
@@ -656,16 +605,6 @@ class MobileAuthCubit extends Cubit<MobileAuthState> {
     final identity = await _repository.getDeviceIdentity();
     if (user == null || deviceId == null) {
       return null;
-    }
-
-    final localResult = await _localAuthentication.authenticate();
-    if (localResult != AuthenticationResult.authenticated) {
-      return MobileAuthState(
-        phase: MobileAuthPhase.signedOut,
-        identity: identity,
-        isOffline: true,
-        errorMessage: _localAuthenticationMessage(localResult),
-      );
     }
 
     return MobileAuthState(
@@ -687,18 +626,5 @@ class MobileAuthCubit extends Cubit<MobileAuthState> {
     _pendingPassword = null;
     _pendingUsername = null;
     _pendingIsStaff = null;
-  }
-
-  String _localAuthenticationMessage(AuthenticationResult result) {
-    switch (result) {
-      case AuthenticationResult.unsupported:
-        return 'Set up device screen lock or biometrics to access this account.';
-      case AuthenticationResult.cancelled:
-        return 'Local authentication was cancelled.';
-      case AuthenticationResult.failed:
-        return 'Local authentication failed. Try again.';
-      case AuthenticationResult.authenticated:
-        return '';
-    }
   }
 }

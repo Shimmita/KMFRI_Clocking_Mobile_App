@@ -90,7 +90,7 @@ class CheckingSnackbar extends StatelessWidget {
                 const SizedBox(width: 14),
                 Expanded(
                   child: Text(
-                    isOnline ? 'Connected to KMFRI' : 'Offline mode active',
+                    isOnline ? 'Connected to the Internet' : 'Offline mode active',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,

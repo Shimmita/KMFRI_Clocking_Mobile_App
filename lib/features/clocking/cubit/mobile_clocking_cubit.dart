@@ -24,9 +24,10 @@ class MobileClockingCubit extends Cubit<MobileClockingState> {
     this._device,
     this._identity, {
     AuthenticationRepository? localAuthentication,
-  })  : _localAuthentication = localAuthentication ??
-            AuthenticationRepository(AuthenticationService()),
-        super(MobileClockingState());
+  }) : _localAuthentication =
+           localAuthentication ??
+           AuthenticationRepository(AuthenticationService()),
+       super(MobileClockingState());
 
   final MobileClockingRepository _repository;
   final MobileUser _user;
@@ -182,8 +183,7 @@ class MobileClockingCubit extends Cubit<MobileClockingState> {
       if (state.pendingCount > 0) {
         emit(
           state.copyWith(
-            errorMessage: state.errorMessage ??
-                'Pending attendance must synchronize before the next clock action.',
+            errorMessage: state.errorMessage ?? 'Pending attendance must synchronize before the next clock action.',
           ),
         );
         return;
@@ -192,12 +192,7 @@ class MobileClockingCubit extends Cubit<MobileClockingState> {
 
     final localResult = await _localAuthentication.authenticate();
     if (localResult != AuthenticationResult.authenticated) {
-      emit(
-        state.copyWith(
-          errorMessage:
-              'user authentication is required',
-        ),
-      );
+      emit(state.copyWith(errorMessage: 'user authentication is required'));
       return;
     }
 
@@ -311,6 +306,12 @@ class MobileClockingCubit extends Cubit<MobileClockingState> {
           return;
         } on MobileApiException catch (error) {
           if (_isAuthenticationRequired(error)) {
+            final restored = await _trySilentSynchronizationReauthentication();
+            if (restored) {
+              _operationInProgress = false;
+              await synchronizePending(refreshContext: true);
+              return;
+            }
             emit(
               state.copyWith(
                 isSyncing: false,
@@ -349,15 +350,21 @@ class MobileClockingCubit extends Cubit<MobileClockingState> {
       await _repository.retainRecentHistory(_user.id);
     } on MobileApiException catch (error) {
       if (_isAuthenticationRequired(error) && state.pendingCount > 0) {
-        emit(
-          state.copyWith(
-            isSyncing: false,
-            clearContext: true,
-            requiresSyncAuthentication: true,
-            errorMessage:
-                'Authentication is required to synchronize attendance.',
-          ),
-        );
+        final restored = await _trySilentSynchronizationReauthentication();
+        if (restored) {
+          _operationInProgress = false;
+          await synchronizePending(refreshContext: true);
+        } else {
+          emit(
+            state.copyWith(
+              isSyncing: false,
+              clearContext: true,
+              requiresSyncAuthentication: true,
+              errorMessage:
+                  'Authentication is required to synchronize attendance.',
+            ),
+          );
+        }
       } else {
         emit(
           state.copyWith(
@@ -377,6 +384,27 @@ class MobileClockingCubit extends Cubit<MobileClockingState> {
       );
     } finally {
       _operationInProgress = false;
+    }
+  }
+
+  Future<bool> _trySilentSynchronizationReauthentication() async {
+    String? password;
+    try {
+      password = await _repository.readSavedAccountPassword(_user.id);
+    } catch (_) {
+      return false;
+    }
+    if (password == null || password.isEmpty) return false;
+    try {
+      await _repository.reauthenticateForSynchronization(
+        userId: _user.id,
+        deviceId: _device.id,
+        identity: _identity,
+        password: password,
+      );
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -464,7 +492,12 @@ class MobileClockingCubit extends Cubit<MobileClockingState> {
   Future<void> _synchronizeRecord(ClockingRecord record) async {
     try {
       await _repository.synchronize(record);
-      final syncedRecord = record.copyWith(
+      final savedRecords = await _repository.loadRecords(record.userId);
+      final synchronizedRecord = savedRecords.firstWhere(
+        (item) => item.localRecordId == record.localRecordId,
+        orElse: () => record,
+      );
+      final syncedRecord = synchronizedRecord.copyWith(
         syncStatus: 'synced',
         clearSyncMessage: true,
       );
@@ -587,8 +620,18 @@ class MobileClockingCubit extends Cubit<MobileClockingState> {
       statusCode == 408 ||
       statusCode == 429;
 
-  bool _isAuthenticationRequired(Object error) =>
-      error is MobileApiException && error.statusCode == 401;
+  bool _isAuthenticationRequired(Object error) {
+    if (error is! MobileApiException) return false;
+    if (error.statusCode == 401) return true;
+    if (error.statusCode != 403) return false;
+    final code = (error.code ?? '').toUpperCase();
+    final message = error.message.toUpperCase();
+    return code.contains('SESSION') ||
+        code.contains('UNAUTHORIZED') ||
+        code.contains('AUTH') ||
+        message.contains('SESSION EXPIRED') ||
+        message.contains('UNAUTHORIZED');
+  }
 
   String _messageFor(Object error) {
     if (error is MobileApiException) return error.message;

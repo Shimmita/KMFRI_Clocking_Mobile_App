@@ -120,82 +120,220 @@ class _MobileSignInScreenState extends State<MobileSignInScreen> {
           ],
         ),
       ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Connection Status Pill
-                  _connectionBanner(),
-                  const SizedBox(height: 20),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFF2F7FC), Color(0xFFF8FAFD)],
+          ),
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 700;
+              final horizontalPadding = isWide ? 48.0 : 20.0;
+              return Center(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding,
+                    isWide ? 32 : 20,
+                    horizontalPadding,
+                    28,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: isWide ? 760 : 520),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (isWide) _wideWelcomePanel(),
+                        if (isWide) const SizedBox(height: 22),
+                        if (!isWide) _mobileWelcomePanel(),
+                        if (!isWide) const SizedBox(height: 16),
+                        _connectionBanner(),
+                        const SizedBox(height: 16),
 
-                  FutureBuilder<List<RememberedAccount>>(
-                    future: _rememberedAccountsFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(28),
-                            child: CircularProgressIndicator(
+                        FutureBuilder<List<RememberedAccount>>(
+                          future: _rememberedAccountsFuture,
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(28),
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFF005B96),
+                                  ),
+                                ),
+                              );
+                            }
+                            if (snapshot.hasError) {
+                              return _errorMessage(
+                                'Saved accounts could not be loaded. Please try again.',
+                              );
+                            }
+
+                            final accounts =
+                                snapshot.data ?? const <RememberedAccount>[];
+                            if (accounts.isNotEmpty && !_useAlternativeSignIn) {
+                              return _rememberedAccountCard(accounts);
+                            }
+                            return _signInCard(
+                              hasRememberedAccounts: accounts.isNotEmpty,
+                            );
+                          },
+                        ),
+
+                        if (widget.errorMessage != null &&
+                            widget.errorMessage!.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          _errorMessage(widget.errorMessage!),
+                        ],
+
+                        const SizedBox(height: 20),
+
+                        // Tutorial Replay Quick Link
+                        Center(
+                          child: TextButton.icon(
+                            onPressed: () => context
+                                .read<MobileAuthCubit>()
+                                .showOnboarding(),
+                            icon: const Icon(
+                              Icons.auto_stories_rounded,
+                              size: 18,
                               color: Color(0xFF005B96),
                             ),
+                            label: const Text(
+                              'Stuck? View the Mobile App Tutorial',
+                              style: TextStyle(
+                                color: Color(0xFF005B96),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
-                        );
-                      }
-                      if (snapshot.hasError) {
-                        return _errorMessage(
-                          'Saved accounts could not be loaded. Please try again.',
-                        );
-                      }
-
-                      final accounts =
-                          snapshot.data ?? const <RememberedAccount>[];
-                      if (accounts.isNotEmpty && !_useAlternativeSignIn) {
-                        return _rememberedAccountCard(accounts);
-                      }
-                      return _signInCard(
-                        hasRememberedAccounts: accounts.isNotEmpty,
-                      );
-                    },
-                  ),
-
-                  if (widget.errorMessage != null &&
-                      widget.errorMessage!.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    _errorMessage(widget.errorMessage!),
-                  ],
-
-                  const SizedBox(height: 20),
-
-                  // Tutorial Replay Quick Link
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () =>
-                          context.read<MobileAuthCubit>().showOnboarding(),
-                      icon: const Icon(
-                        Icons.auto_stories_rounded,
-                        size: 18,
-                        color: Color(0xFF005B96),
-                      ),
-                      label: const Text(
-                        'Replay App Tutorial & Purpose',
-                        style: TextStyle(
-                          color: Color(0xFF005B96),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _wideWelcomePanel() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0A3D62), Color(0xFF005B96)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x220A3D62),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Icon(
+              Icons.access_time_rounded,
+              color: Colors.white,
+              size: 34,
+            ),
+          ),
+          const SizedBox(width: 18),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome to KMFRI Clocking',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Secure attendance, wherever you are.',
+                  style: TextStyle(color: Color(0xFFDDEEFF), fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text(
+              'ATTENDANCE PORTAL',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+                letterSpacing: 0.6,
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mobileWelcomePanel() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0A3D62), Color(0xFF005B96)],
         ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.access_time_rounded, color: Colors.white, size: 30),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Secure KMFRI attendance access',
+                  style: TextStyle(color: Color(0xFFDDEEFF), fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -241,7 +379,7 @@ class _MobileSignInScreenState extends State<MobileSignInScreen> {
           Expanded(
             child: Text(
               connected
-                  ? 'ONLINE — Connected to KMFRI Server'
+                  ? 'ONLINE — Connected to the Internet'
                   : 'OFFLINE MODE — No internet connection',
               style: TextStyle(
                 color: connected
@@ -314,10 +452,13 @@ class _MobileSignInScreenState extends State<MobileSignInScreen> {
                               userId: account.userId,
                             );
                       } else {
-                        setState(() {
-                          _selectedRememberedAccount = account;
-                          _passwordController.clear();
-                        });
+                        context
+                            .read<MobileAuthCubit>()
+                            .continueWithRememberedAccount(
+                              isOnline: true,
+                              userId: account.userId,
+                              password: '',
+                            );
                       }
                     },
                     borderRadius: BorderRadius.circular(16),
@@ -353,7 +494,7 @@ class _MobileSignInScreenState extends State<MobileSignInScreen> {
                                 ),
                                 if (!widget.isOnline)
                                   const Text(
-                                    'Tap to unlock with Biometrics / PIN',
+                                    'Tap to continue offline',
                                     style: TextStyle(
                                       color: Color(0xFF16856B),
                                       fontSize: 12,

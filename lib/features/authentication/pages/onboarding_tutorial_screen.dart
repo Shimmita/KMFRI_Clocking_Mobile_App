@@ -10,10 +10,7 @@ import 'package:flutter/material.dart';
 /// GPS verification, synchronization, or API calls.
 
 class OnboardingTutorialScreen extends StatefulWidget {
-  const OnboardingTutorialScreen({
-    super.key,
-    required this.onGetStarted,
-  });
+  const OnboardingTutorialScreen({super.key, required this.onGetStarted});
 
   final VoidCallback onGetStarted;
 
@@ -22,8 +19,7 @@ class OnboardingTutorialScreen extends StatefulWidget {
       _OnboardingTutorialScreenState();
 }
 
-class _OnboardingTutorialScreenState
-    extends State<OnboardingTutorialScreen>
+class _OnboardingTutorialScreenState extends State<OnboardingTutorialScreen>
     with TickerProviderStateMixin {
   final PageController _pageController = PageController();
 
@@ -46,32 +42,50 @@ class _OnboardingTutorialScreenState
     _OnboardingData(
       title: 'Welcome to\nKMFRI Clocking',
       description:
-      'A simple and secure way to record your daily attendance with KMFRI.',
+          'A simple and secure way to record your daily attendance with KMFRI.',
       icon: Icons.access_time_rounded,
       accent: oceanBlue,
       type: _OnboardingVisual.welcome,
     ),
     _OnboardingData(
       title: 'Your attendance.\nSecurely recorded.',
-      description:
-      'Use your authorized account and registered device to record your attendance with confidence.',
+      description: 'Use your authorized account and registered device to record your attendance with confidence.',
       icon: Icons.verified_user_rounded,
       accent: deepNavy,
       type: _OnboardingVisual.security,
     ),
     _OnboardingData(
       title: 'Clock in.\nEven offline.',
-      description:
-      'No internet? Your clocking can be securely saved on your device and synchronized when connectivity returns.',
+      description: 'No internet? Your clocking is safely saved on this device and synchronized automatically when connectivity returns.',
       icon: Icons.cloud_off_rounded,
       accent: seafoam,
       type: _OnboardingVisual.offline,
     ),
     _OnboardingData(
-      title: 'Ready to\nget started?',
-      description:
-      'Choose your account type and sign in to access KMFRI Clocking.',
+      title: 'First time\nsigning in?',
+      description: 'Choose Staff or Intern / Attaché, enter your Staff Number or registered email and your password. Your first sign-in securely saves this account on your phone.',
       icon: Icons.login_rounded,
+      accent: oceanBlue,
+      type: _OnboardingVisual.firstSignIn,
+    ),
+    _OnboardingData(
+      title: 'Secure this\ndevice once.',
+      description: 'After your first successful sign-in, tap “Enroll this device” on the Device Security screen. The phone is then securely linked to your account; another phone needs administrator release before enrollment.',
+      icon: Icons.phonelink_lock_rounded,
+      accent: deepNavy,
+      type: _OnboardingVisual.enrollment,
+    ),
+    _OnboardingData(
+      title: 'Return to a\nsaved account.',
+      description: 'On your next visit, select your existing account to continue directly—no password entry is needed. Stay connected for server access, or continue offline to use your saved account and clocking records.',
+      icon: Icons.switch_account_rounded,
+      accent: seafoam,
+      type: _OnboardingVisual.savedAccount,
+    ),
+    _OnboardingData(
+      title: 'Ready to\nget started?',
+      description: 'Choose a saved account for quick access, or use “Use another way” to sign in with Staff Number or registered email and password.',
+      icon: Icons.verified_rounded,
       accent: oceanBlue,
       type: _OnboardingVisual.ready,
     ),
@@ -91,15 +105,13 @@ class _OnboardingTutorialScreenState
       curve: Curves.easeOut,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.035),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _contentController,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.035), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _contentController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _contentController.forward();
   }
@@ -149,11 +161,92 @@ class _OnboardingTutorialScreenState
 
     return Scaffold(
       backgroundColor: cloudWhite,
+      appBar: AppBar(
+        backgroundColor: deepNavy,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        scrolledUnderElevation: 2,
+        toolbarHeight: 65,
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/images/gov_logo.png',
+              height: 38,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                'assets/images/kmfri_logo.png',
+                height: 28,
+                fit: BoxFit.contain,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'KMFRI CLOCKING',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    'ATTENDANCE SYSTEM',
+                    style: TextStyle(
+                      color: Color(0xFF87CEEB),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: _currentPage == _pages.length - 1
+            ? null
+            : [
+                TextButton(
+                  onPressed: _skip,
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  child: const Text(
+                    'Skip',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
-
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -170,10 +263,7 @@ class _OnboardingTutorialScreenState
                     opacity: _fadeAnimation,
                     child: SlideTransition(
                       position: _slideAnimation,
-                      child: _buildPage(
-                        _pages[index],
-                        isSmallHeight,
-                      ),
+                      child: _buildPage(_pages[index], isSmallHeight),
                     ),
                   );
                 },
@@ -188,106 +278,10 @@ class _OnboardingTutorialScreenState
   }
 
   // ---------------------------------------------------------------------------
-  // HEADER
-  // ---------------------------------------------------------------------------
-
-  Widget _buildHeader() {
-    final isLastPage = _currentPage == _pages.length - 1;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 16, 22, 8),
-      child: Row(
-        children: [
-          _buildBrandMark(),
-
-          const SizedBox(width: 11),
-
-          const Expanded(
-            child: Text(
-              'KMFRI CLOCKING',
-              style: TextStyle(
-                color: deepNavy,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.0,
-              ),
-            ),
-          ),
-
-          if (!isLastPage)
-            TextButton(
-              onPressed: _skip,
-              style: TextButton.styleFrom(
-                foregroundColor: charcoal.withValues(alpha: 0.7),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-              ),
-              child: const Text(
-                'Skip',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBrandMark() {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            deepNavy,
-            oceanBlue,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(13),
-        boxShadow: [
-          BoxShadow(
-            color: deepNavy.withValues(alpha: 0.18),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: const Stack(
-        alignment: Alignment.center,
-        children: [
-          Icon(
-            Icons.waves_rounded,
-            color: Colors.white,
-            size: 23,
-          ),
-          Positioned(
-            bottom: 5,
-            child: Icon(
-              Icons.access_time_rounded,
-              color: aqua,
-              size: 9,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
   // PAGE
   // ---------------------------------------------------------------------------
 
-  Widget _buildPage(
-      _OnboardingData page,
-      bool isSmallHeight,
-      ) {
+  Widget _buildPage(_OnboardingData page, bool isSmallHeight) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableHeight = constraints.maxHeight;
@@ -300,9 +294,7 @@ class _OnboardingTutorialScreenState
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: availableHeight,
-            ),
+            constraints: BoxConstraints(minHeight: availableHeight),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -330,9 +322,7 @@ class _OnboardingTutorialScreenState
                 const SizedBox(height: 15),
 
                 ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: 430,
-                  ),
+                  constraints: const BoxConstraints(maxWidth: 430),
                   child: Text(
                     page.description,
                     textAlign: TextAlign.center,
@@ -347,6 +337,24 @@ class _OnboardingTutorialScreenState
 
                 const SizedBox(height: 12),
 
+                if (page.type == _OnboardingVisual.firstSignIn)
+                  _buildInfoPreview(const [
+                    (Icons.badge_outlined, 'Staff number'),
+                    (Icons.email_outlined, 'Registered email'),
+                    (Icons.lock_outline_rounded, 'Password'),
+                  ]),
+                if (page.type == _OnboardingVisual.enrollment)
+                  _buildInfoPreview(const [
+                    (Icons.smartphone_rounded, 'This phone'),
+                    (Icons.link_rounded, 'Secure link'),
+                    (Icons.admin_panel_settings_outlined, 'Admin release'),
+                  ]),
+                if (page.type == _OnboardingVisual.savedAccount)
+                  _buildInfoPreview(const [
+                    (Icons.person_outline_rounded, 'Saved account'),
+                    (Icons.cloud_done_outlined, 'Online access'),
+                    (Icons.cloud_off_rounded, 'Offline access'),
+                  ]),
                 if (page.type == _OnboardingVisual.ready)
                   _buildAccountPreview(),
 
@@ -374,6 +382,9 @@ class _OnboardingTutorialScreenState
       case _OnboardingVisual.offline:
         return _buildOfflineVisual();
 
+      case _OnboardingVisual.firstSignIn:
+      case _OnboardingVisual.enrollment:
+      case _OnboardingVisual.savedAccount:
       case _OnboardingVisual.ready:
         return _buildReadyVisual();
     }
@@ -383,26 +394,16 @@ class _OnboardingTutorialScreenState
     return Stack(
       alignment: Alignment.center,
       children: [
-        _buildGlow(
-          size: 270,
-          color: oceanBlue,
-          opacity: 0.08,
-        ),
+        _buildGlow(size: 270, color: oceanBlue, opacity: 0.08),
 
-        _buildDecorativeCircle(
-          size: 220,
-          color: const Color(0xFFEAF3FA),
-        ),
+        _buildDecorativeCircle(size: 220, color: const Color(0xFFEAF3FA)),
 
         Container(
           width: 170,
           height: 170,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [
-                deepNavy,
-                oceanBlue,
-              ],
+              colors: [deepNavy, oceanBlue],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -425,28 +426,19 @@ class _OnboardingTutorialScreenState
         Positioned(
           right: 18,
           top: 48,
-          child: _floatingIcon(
-            Icons.location_on_rounded,
-            oceanBlue,
-          ),
+          child: _floatingIcon(Icons.location_on_rounded, oceanBlue),
         ),
 
         Positioned(
           left: 20,
           bottom: 38,
-          child: _floatingIcon(
-            Icons.check_circle_rounded,
-            seafoam,
-          ),
+          child: _floatingIcon(Icons.check_circle_rounded, seafoam),
         ),
 
         Positioned(
           right: 54,
           bottom: 20,
-          child: _floatingIcon(
-            Icons.phone_android_rounded,
-            marineBlue,
-          ),
+          child: _floatingIcon(Icons.phone_android_rounded, marineBlue),
         ),
       ],
     );
@@ -456,11 +448,7 @@ class _OnboardingTutorialScreenState
     return Stack(
       alignment: Alignment.center,
       children: [
-        _buildGlow(
-          size: 290,
-          color: deepNavy,
-          opacity: 0.07,
-        ),
+        _buildGlow(size: 290, color: deepNavy, opacity: 0.07),
 
         Container(
           width: 230,
@@ -468,10 +456,7 @@ class _OnboardingTutorialScreenState
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(38),
-            border: Border.all(
-              color: softGray,
-              width: 1.5,
-            ),
+            border: Border.all(color: softGray, width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: deepNavy.withValues(alpha: 0.10),
@@ -517,15 +502,9 @@ class _OnboardingTutorialScreenState
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _securityPill(
-                      Icons.verified_user_rounded,
-                      'Secure',
-                    ),
+                    _securityPill(Icons.verified_user_rounded, 'Secure'),
                     const SizedBox(width: 7),
-                    _securityPill(
-                      Icons.phone_android_rounded,
-                      'Device',
-                    ),
+                    _securityPill(Icons.phone_android_rounded, 'Device'),
                   ],
                 ),
               ),
@@ -536,19 +515,13 @@ class _OnboardingTutorialScreenState
         Positioned(
           right: 22,
           top: 35,
-          child: _floatingIcon(
-            Icons.lock_rounded,
-            deepNavy,
-          ),
+          child: _floatingIcon(Icons.lock_rounded, deepNavy),
         ),
 
         Positioned(
           left: 18,
           bottom: 40,
-          child: _floatingIcon(
-            Icons.verified_rounded,
-            seafoam,
-          ),
+          child: _floatingIcon(Icons.verified_rounded, seafoam),
         ),
       ],
     );
@@ -558,11 +531,7 @@ class _OnboardingTutorialScreenState
     return Stack(
       alignment: Alignment.center,
       children: [
-        _buildGlow(
-          size: 290,
-          color: seafoam,
-          opacity: 0.09,
-        ),
+        _buildGlow(size: 290, color: seafoam, opacity: 0.09),
 
         // Cloud
         Positioned(
@@ -590,10 +559,7 @@ class _OnboardingTutorialScreenState
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(32),
-            border: Border.all(
-              color: softGray,
-              width: 1.5,
-            ),
+            border: Border.all(color: softGray, width: 1.5),
             boxShadow: [
               BoxShadow(
                 color: deepNavy.withValues(alpha: 0.11),
@@ -695,11 +661,7 @@ class _OnboardingTutorialScreenState
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.sync_rounded,
-              color: aqua,
-              size: 29,
-            ),
+            child: const Icon(Icons.sync_rounded, color: aqua, size: 29),
           ),
         ),
       ],
@@ -710,21 +672,14 @@ class _OnboardingTutorialScreenState
     return Stack(
       alignment: Alignment.center,
       children: [
-        _buildGlow(
-          size: 290,
-          color: oceanBlue,
-          opacity: 0.08,
-        ),
+        _buildGlow(size: 290, color: oceanBlue, opacity: 0.08),
 
         Container(
           width: 230,
           height: 230,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [
-                deepNavy,
-                oceanBlue,
-              ],
+              colors: [deepNavy, oceanBlue],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -740,11 +695,7 @@ class _OnboardingTutorialScreenState
           child: const Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.login_rounded,
-                color: Colors.white,
-                size: 66,
-              ),
+              Icon(Icons.login_rounded, color: Colors.white, size: 66),
               SizedBox(height: 13),
               Text(
                 'READY',
@@ -762,19 +713,13 @@ class _OnboardingTutorialScreenState
         Positioned(
           top: 26,
           right: 24,
-          child: _floatingIcon(
-            Icons.person_rounded,
-            oceanBlue,
-          ),
+          child: _floatingIcon(Icons.person_rounded, oceanBlue),
         ),
 
         Positioned(
           bottom: 30,
           left: 22,
-          child: _floatingIcon(
-            Icons.lock_rounded,
-            seafoam,
-          ),
+          child: _floatingIcon(Icons.lock_rounded, seafoam),
         ),
       ],
     );
@@ -799,36 +744,25 @@ class _OnboardingTutorialScreenState
     );
   }
 
-  Widget _buildDecorativeCircle({
-    required double size,
-    required Color color,
-  }) {
+  Widget _buildDecorativeCircle({required double size, required Color color}) {
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(
-          color: color,
-          width: 1.5,
-        ),
+        border: Border.all(color: color, width: 1.5),
       ),
     );
   }
 
-  Widget _floatingIcon(
-      IconData icon,
-      Color color,
-      ) {
+  Widget _floatingIcon(IconData icon, Color color) {
     return Container(
       width: 52,
       height: 52,
       decoration: BoxDecoration(
         color: Colors.white,
         shape: BoxShape.circle,
-        border: Border.all(
-          color: softGray,
-        ),
+        border: Border.all(color: softGray),
         boxShadow: [
           BoxShadow(
             color: deepNavy.withValues(alpha: 0.10),
@@ -837,38 +771,22 @@ class _OnboardingTutorialScreenState
           ),
         ],
       ),
-      child: Icon(
-        icon,
-        color: color,
-        size: 23,
-      ),
+      child: Icon(icon, color: color, size: 23),
     );
   }
 
-  Widget _securityPill(
-      IconData icon,
-      String label,
-      ) {
+  Widget _securityPill(IconData icon, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFD),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: softGray,
-        ),
+        border: Border.all(color: softGray),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: oceanBlue,
-            size: 12,
-          ),
+          Icon(icon, color: oceanBlue, size: 12),
           const SizedBox(width: 4),
           Text(
             label,
@@ -884,22 +802,17 @@ class _OnboardingTutorialScreenState
   }
 
   Widget _offlineRecord(
-      IconData icon,
-      String title,
-      String subtitle,
-      Color color,
-      ) {
+    IconData icon,
+    String title,
+    String subtitle,
+    Color color,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 9,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
         color: cloudWhite,
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(
-          color: softGray,
-        ),
+        border: Border.all(color: softGray),
       ),
       child: Row(
         children: [
@@ -910,11 +823,7 @@ class _OnboardingTutorialScreenState
               color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(9),
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 16,
-            ),
+            child: Icon(icon, color: color, size: 16),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -932,10 +841,7 @@ class _OnboardingTutorialScreenState
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    color: Color(0xFF667085),
-                    fontSize: 8,
-                  ),
+                  style: const TextStyle(color: Color(0xFF667085), fontSize: 8),
                 ),
               ],
             ),
@@ -946,22 +852,80 @@ class _OnboardingTutorialScreenState
   }
 
   // ---------------------------------------------------------------------------
-  // FINAL PAGE ACCOUNT PREVIEW
+  // ACCOUNT FLOW PREVIEW
   // ---------------------------------------------------------------------------
+
+  Widget _buildInfoPreview(List<(IconData, String)> items) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: softGray),
+        boxShadow: [
+          BoxShadow(
+            color: deepNavy.withValues(alpha: 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 330;
+          return Wrap(
+            alignment: WrapAlignment.spaceEvenly,
+            runSpacing: 8,
+            spacing: narrow ? 4 : 10,
+            children: items
+                .map(
+                  (item) => SizedBox(
+                    width: narrow ? (constraints.maxWidth - 16) / 3 : 112,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEAF3FA),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(item.$1, color: oceanBlue, size: 20),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          item.$2,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          style: const TextStyle(
+                            color: charcoal,
+                            fontSize: 10,
+                            height: 1.2,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+                .toList(),
+          );
+        },
+      ),
+    );
+  }
 
   Widget _buildAccountPreview() {
     return Container(
       margin: const EdgeInsets.only(top: 18),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: softGray,
-        ),
+        border: Border.all(color: softGray),
         boxShadow: [
           BoxShadow(
             color: deepNavy.withValues(alpha: 0.05),
@@ -973,37 +937,21 @@ class _OnboardingTutorialScreenState
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _roleChip(
-            Icons.badge_outlined,
-            'Staff',
-          ),
-          _roleChip(
-            Icons.school_outlined,
-            'Intern',
-          ),
-          _roleChip(
-            Icons.work_outline_rounded,
-            'Attaché',
-          ),
+          _roleChip(Icons.badge_outlined, 'Staff'),
+          _roleChip(Icons.school_outlined, 'Intern'),
+          _roleChip(Icons.work_outline_rounded, 'Attaché'),
         ],
       ),
     );
   }
 
-  Widget _roleChip(
-      IconData icon,
-      String label,
-      ) {
+  Widget _roleChip(IconData icon, String label) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            color: oceanBlue,
-            size: 19,
-          ),
+          Icon(icon, color: oceanBlue, size: 19),
           const SizedBox(height: 3),
           Text(
             label,
@@ -1029,9 +977,7 @@ class _OnboardingTutorialScreenState
       padding: const EdgeInsets.fromLTRB(24, 10, 24, 22),
       child: Row(
         children: [
-          Expanded(
-            child: _buildPageIndicator(),
-          ),
+          Expanded(child: _buildPageIndicator()),
 
           const SizedBox(width: 18),
 
@@ -1043,9 +989,7 @@ class _OnboardingTutorialScreenState
                 backgroundColor: deepNavy,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 21,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 21),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(17),
                 ),
@@ -1078,27 +1022,24 @@ class _OnboardingTutorialScreenState
 
   Widget _buildPageIndicator() {
     return Row(
-      children: List.generate(
-        _pages.length,
-            (index) {
-          final active = index == _currentPage;
+      children: List.generate(_pages.length, (index) {
+        final active = index == _currentPage;
 
-          return GestureDetector(
-            onTap: () => _goToPage(index),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOutCubic,
-              margin: const EdgeInsets.only(right: 6),
-              width: active ? 28 : 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: active ? oceanBlue : const Color(0xFFD0D5DD),
-                borderRadius: BorderRadius.circular(20),
-              ),
+        return GestureDetector(
+          onTap: () => _goToPage(index),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.only(right: 6),
+            width: active ? 28 : 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: active ? oceanBlue : const Color(0xFFD0D5DD),
+              borderRadius: BorderRadius.circular(20),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      }),
     );
   }
 }
@@ -1111,6 +1052,9 @@ enum _OnboardingVisual {
   welcome,
   security,
   offline,
+  firstSignIn,
+  enrollment,
+  savedAccount,
   ready,
 }
 

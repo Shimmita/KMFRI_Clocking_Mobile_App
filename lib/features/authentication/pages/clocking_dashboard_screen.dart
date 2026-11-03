@@ -84,9 +84,9 @@ class _DashboardViewState extends State<_DashboardView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        context
-            .read<MobileClockingCubit>()
-            .refreshLocation(promptIfDisabled: true);
+        context.read<MobileClockingCubit>().refreshLocation(
+          promptIfDisabled: true,
+        );
       }
     });
   }
@@ -725,12 +725,12 @@ class _DashboardViewState extends State<_DashboardView> {
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color:
-                              const Color(0xFFFFB400).withValues(alpha: 0.22),
+                          color: const Color(0xFFFFB400)
+                              .withValues(alpha: 0.22),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color:
-                                const Color(0xFFFFB400).withValues(alpha: 0.45),
+                            color: const Color(0xFFFFB400)
+                                .withValues(alpha: 0.45),
                           ),
                         ),
                         child: Text(
@@ -800,7 +800,8 @@ class _DashboardViewState extends State<_DashboardView> {
     bool canShowClock,
   ) {
     final stationName = state.context?.stationName ?? 'Assigned station';
-    final isOutsideBlocked = state.context != null && !state.canProceedWithLocation;
+    final isOutsideBlocked =
+        state.context != null && !state.canProceedWithLocation;
 
     return Container(
       padding: const EdgeInsets.all(17),
@@ -906,7 +907,10 @@ class _DashboardViewState extends State<_DashboardView> {
                     icon: const Icon(Icons.refresh_rounded, size: 16),
                     label: const Text(
                       'RE-CHECK LOCATION',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF8A5700),
@@ -1222,6 +1226,15 @@ class _DashboardViewState extends State<_DashboardView> {
                       fontSize: 12,
                     ),
                   ),
+                  if (record.locationName != null &&
+                      record.locationName!.isNotEmpty)
+                    Text(
+                      record.locationName!,
+                      style: const TextStyle(
+                        color: Color(0xFF667085),
+                        fontSize: 12,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -1436,7 +1449,7 @@ class _DashboardViewState extends State<_DashboardView> {
           },
         ),
       );
-     } finally {
+    } finally {
       passwordController.dispose();
       _syncAuthenticationDialogOpen = false;
       if (mounted) cubit.dismissSyncAuthenticationPrompt();
@@ -1466,12 +1479,14 @@ class __AnimatedFingerprintIconState extends State<_AnimatedFingerprintIcon>
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
 
-    _scaleAnimation = Tween<double>(begin: 0.9, end: 1.15).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-    _opacityAnimation = Tween<double>(begin: 0.75, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.9,
+      end: 1.15,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _opacityAnimation = Tween<double>(
+      begin: 0.75,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override

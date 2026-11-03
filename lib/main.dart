@@ -3,9 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'features/authentication/cubit/mobile_auth_cubit.dart';
-import 'features/authentication/repository/authentication_repository.dart';
 import 'features/authentication/repository/mobile_auth_repository.dart';
-import 'features/authentication/service/authentication_service.dart';
 import 'features/authentication/service/device_identity_service.dart';
 import 'features/authentication/service/mobile_api_service.dart';
 import 'features/connectivity/cubit/connectivity_cubit.dart';
@@ -29,14 +27,12 @@ class KMFRIClockingApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF8FAFD),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF005B96),
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF005B96)),
       ),
       home: BlocProvider(
-        create: (_) => ConnectivityCubit(
-          ConnectivityRepository(ConnectivityService()),
-        )..startMonitoring(),
+        create: (_) =>
+            ConnectivityCubit(ConnectivityRepository(ConnectivityService()))
+              ..startMonitoring(),
         child: BlocProvider(
           create: (_) {
             const secureStorage = FlutterSecureStorage();
@@ -45,7 +41,6 @@ class KMFRIClockingApp extends StatelessWidget {
                 MobileApiService(storage: secureStorage),
                 DeviceIdentityService(storage: secureStorage),
               ),
-              AuthenticationRepository(AuthenticationService()),
             );
           },
           child: const AppRouter(),

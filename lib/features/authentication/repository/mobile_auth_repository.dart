@@ -62,6 +62,9 @@ class MobileAuthRepository {
   Future<RememberedAccount?> readRememberedAccount(String userId) =>
       _api.readRememberedAccount(userId);
 
+  Future<String?> readSavedAccountPassword(String userId) =>
+      _api.readSavedAccountPassword(userId);
+
   Future<bool> verifyRememberedAccountPassword(
     String userId,
     String password,
