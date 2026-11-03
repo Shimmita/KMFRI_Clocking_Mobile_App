@@ -287,11 +287,7 @@ class MobileClockingCubit extends Cubit<MobileClockingState> {
           state.records
               .where((record) => record.syncStatus == 'pending')
               .toList()
-            ..sort((left, right) {
-              final leftTime = left.createdAt ?? left.time;
-              final rightTime = right.createdAt ?? right.time;
-              return leftTime.compareTo(rightTime);
-            });
+            ..sort((left, right) => left.time.compareTo(right.time));
 
       for (final record in pendingRecords) {
         try {
