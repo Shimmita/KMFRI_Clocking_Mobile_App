@@ -93,7 +93,15 @@ class ClockingRecord {
     'eventAt': time.toUtc().toIso8601String(),
     'selectedStation': station,
     'userCoords': {'latitude': latitude, 'longitude': longitude},
-    'outsideLocation': outsideLocation,
+    'outsideLocation': outsideLocation ?? syncMessage ?? '',
+    'clockInLocationName': withinPremise == true
+        ? 'IN PREMISE'
+        : (outsideLocation ?? syncMessage ?? ''),
+    'clockOutLocationName': withinPremise == true
+        ? 'IN PREMISE'
+        : (outsideLocation ?? syncMessage ?? ''),
+    'withinPremise': withinPremise,
+    'clockedOutside': clockedOutside,
   };
 
   ClockingRecord copyWith({

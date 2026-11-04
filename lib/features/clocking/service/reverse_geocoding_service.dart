@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 
 class ReverseGeocodingService {
   ReverseGeocodingService({HttpClient? httpClient})
-    : _httpClient = httpClient ?? HttpClient();
+      : _httpClient = httpClient ?? HttpClient();
 
   final HttpClient _httpClient;
 
@@ -24,9 +24,9 @@ class ReverseGeocodingService {
 
       final request = await _httpClient
           .getUrl(uri)
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 5));
       final response = await request.close().timeout(
-        const Duration(seconds: 8),
+        const Duration(seconds: 5),
       );
 
       if (response.statusCode == 200) {
@@ -34,35 +34,35 @@ class ReverseGeocodingService {
         final data = jsonDecode(body);
         if (data is Map<String, dynamic>) {
           final formatted = _extractFromPrimaryProvider(data);
-          if (formatted != 'unknown') {
+          if (formatted != 'unknown' && _hasEnoughDetail(formatted)) {
             return formatted;
           }
         }
       }
     } catch (e) {
-      debugPrint('Primary reverse geocoding error: $e');
+      debugPrint('Primary reverse geocoding offline/error: $e');
     }
 
     try {
       final uri = Uri.parse('https://nominatim.openstreetmap.org/reverse')
           .replace(
-            queryParameters: {
-              'format': 'jsonv2',
-              'lat': latitude.toString(),
-              'lon': longitude.toString(),
-              'zoom': '18',
-              'addressdetails': '1',
-            },
-          );
+        queryParameters: {
+          'format': 'jsonv2',
+          'lat': latitude.toString(),
+          'lon': longitude.toString(),
+          'zoom': '18',
+          'addressdetails': '1',
+        },
+      );
       final request = await _httpClient
           .getUrl(uri)
-          .timeout(const Duration(seconds: 8));
+          .timeout(const Duration(seconds: 5));
       request.headers.set(
         HttpHeaders.userAgentHeader,
-        'KMFRI_Attendance_App/1.0',
+        'KMFRI_Attendance_System/1.0',
       );
       final response = await request.close().timeout(
-        const Duration(seconds: 8),
+        const Duration(seconds: 5),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(await response.transform(utf8.decoder).join());
@@ -72,9 +72,18 @@ class ReverseGeocodingService {
         }
       }
     } catch (e) {
-      debugPrint('Nominatim reverse geocoding error: $e');
+      debugPrint('Nominatim reverse geocoding offline/error: $e');
     }
-    return 'unknown';
+
+    // Offline fallback: Format hardware GPS coordinates into structured place representation
+    final latStr = latitude.toStringAsFixed(3);
+    final lngStr = longitude.toStringAsFixed(3);
+    return 'GPS.$latStr.$lngStr';
+  }
+
+  bool _hasEnoughDetail(String loc) {
+    if (loc.isEmpty || loc == 'unknown') return false;
+    return loc.split('.').length >= 2;
   }
 
   String _extractFromPrimaryProvider(Map<String, dynamic> data) {

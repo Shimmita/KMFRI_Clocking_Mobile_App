@@ -169,6 +169,11 @@ class MobileClockingRepository {
         position.latitude,
         position.longitude,
       );
+      if (outsideLocation == null || outsideLocation.trim().isEmpty) {
+        throw StateError(
+          'Outside clocking place could not be resolved. Please verify your GPS signal and try again.',
+        );
+      }
     }
 
     final time = DateTime.now().toUtc();
@@ -183,7 +188,11 @@ class MobileClockingRepository {
       latitude: position?.latitude,
       longitude: position?.longitude,
       outsideLocation: outsideLocation,
+      locationName: isWithinGeofence ? 'IN PREMISE' : outsideLocation,
+      clockedOutside: !isWithinGeofence,
+      withinPremise: isWithinGeofence,
       syncStatus: 'pending',
+      syncMessage: outsideLocation,
       createdAt: time,
     );
     await saveRecord(record);
