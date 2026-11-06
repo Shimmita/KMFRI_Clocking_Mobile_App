@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../authentication/model/authentication_result.dart';
@@ -180,14 +181,6 @@ class MobileClockingCubit extends Cubit<MobileClockingState> {
     if (_operationInProgress || !state.canClock) return;
     if (state.isOnline && state.pendingCount > 0) {
       await synchronizePending();
-      if (state.pendingCount > 0) {
-        emit(
-          state.copyWith(
-            errorMessage: state.errorMessage ?? 'Pending attendance must synchronize before the next clock action.',
-          ),
-        );
-        return;
-      }
     }
 
     final localResult = await _localAuthentication.authenticate();
@@ -290,8 +283,31 @@ class MobileClockingCubit extends Cubit<MobileClockingState> {
             ..sort((left, right) => left.time.compareTo(right.time));
 
       for (final record in pendingRecords) {
+        var recordToSync = record;
+        if ((record.withinPremise == false || record.clockedOutside == true) &&
+            (record.outsideLocation == null ||
+                record.outsideLocation!.isEmpty)) {
+          if (record.latitude != null && record.longitude != null) {
+            try {
+              final resolvedName = await _repository.resolveOutsideLocationName(
+                record.latitude!,
+                record.longitude!,
+              );
+              if (resolvedName != null && resolvedName.isNotEmpty) {
+                recordToSync = record.copyWith(
+                  outsideLocation: resolvedName,
+                  locationName: resolvedName,
+                  syncMessage: resolvedName,
+                );
+                await _repository.saveRecord(recordToSync);
+              }
+            } catch (e) {
+              debugPrint('Pre-sync reverse geocode failed: $e');
+            }
+          }
+        }
         try {
-          await _synchronizeRecord(record);
+          await _synchronizeRecord(recordToSync);
         } on _NetworkUnavailable {
           emit(
             state.copyWith(

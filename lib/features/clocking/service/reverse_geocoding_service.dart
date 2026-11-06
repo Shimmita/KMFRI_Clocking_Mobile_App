@@ -5,14 +5,23 @@ import 'package:flutter/foundation.dart';
 
 class ReverseGeocodingService {
   ReverseGeocodingService({HttpClient? httpClient})
-      : _httpClient = httpClient ?? HttpClient();
+    : _httpClient = httpClient ?? HttpClient();
 
   final HttpClient _httpClient;
 
   static const String _primaryUrl =
       'https://api.bigdatacloud.net/data/reverse-geocode-client';
 
-  Future<String> reverseGeocode(double latitude, double longitude) async {
+  Future<String?> reverseGeocode(double latitude, double longitude) async {
+    if (!latitude.isFinite ||
+        !longitude.isFinite ||
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180) {
+      return null;
+    }
+
     try {
       final uri = Uri.parse(_primaryUrl).replace(
         queryParameters: {
@@ -24,9 +33,9 @@ class ReverseGeocodingService {
 
       final request = await _httpClient
           .getUrl(uri)
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 30));
       final response = await request.close().timeout(
-        const Duration(seconds: 5),
+        const Duration(seconds: 30),
       );
 
       if (response.statusCode == 200) {
@@ -40,45 +49,44 @@ class ReverseGeocodingService {
         }
       }
     } catch (e) {
-      debugPrint('Primary reverse geocoding offline/error: $e');
+      debugPrint('BigDataCloud reverse geocoding error: $e');
     }
 
     try {
       final uri = Uri.parse('https://nominatim.openstreetmap.org/reverse')
           .replace(
-        queryParameters: {
-          'format': 'jsonv2',
-          'lat': latitude.toString(),
-          'lon': longitude.toString(),
-          'zoom': '18',
-          'addressdetails': '1',
-        },
-      );
+            queryParameters: {
+              'format': 'jsonv2',
+              'lat': latitude.toString(),
+              'lon': longitude.toString(),
+              'zoom': '18',
+              'addressdetails': '1',
+            },
+          );
       final request = await _httpClient
           .getUrl(uri)
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 30));
       request.headers.set(
         HttpHeaders.userAgentHeader,
         'KMFRI_Attendance_System/1.0',
       );
       final response = await request.close().timeout(
-        const Duration(seconds: 5),
+        const Duration(seconds: 30),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(await response.transform(utf8.decoder).join());
         if (data is Map<String, dynamic>) {
           final formatted = _extractFromNominatim(data);
-          if (formatted != 'unknown') return formatted;
+          if (formatted != 'unknown' && formatted.isNotEmpty) {
+            return formatted;
+          }
         }
       }
     } catch (e) {
-      debugPrint('Nominatim reverse geocoding offline/error: $e');
+      debugPrint('Nominatim reverse geocoding error: $e');
     }
 
-    // Offline fallback: Format hardware GPS coordinates into structured place representation
-    final latStr = latitude.toStringAsFixed(3);
-    final lngStr = longitude.toStringAsFixed(3);
-    return 'GPS.$latStr.$lngStr';
+    return null;
   }
 
   bool _hasEnoughDetail(String loc) {

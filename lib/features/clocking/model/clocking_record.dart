@@ -101,6 +101,7 @@ class ClockingRecord {
         ? 'IN PREMISE'
         : (outsideLocation ?? syncMessage ?? ''),
     'withinPremise': withinPremise,
+    'isWithinGeofence': withinPremise,
     'clockedOutside': clockedOutside,
   };
 

@@ -60,6 +60,51 @@ void main() {
       },
     );
 
+    test('sequential offline clock-in and clock-out toggles nextAction to clock-in', () {
+      final t1 = DateTime.utc(2026, 10, 5, 8);
+      final t2 = DateTime.utc(2026, 10, 5, 17);
+      final record1 = ClockingRecord(
+        type: 'CLOCK IN',
+        time: t1,
+        localRecordId: 'rec-1',
+        syncStatus: 'pending',
+      );
+      final record2 = ClockingRecord(
+        type: 'CLOCK OUT',
+        time: t2,
+        localRecordId: 'rec-2',
+        syncStatus: 'pending',
+      );
+
+      final state = MobileClockingState(
+        context: context,
+        records: [record1, record2],
+      );
+
+      expect(state.nextAction, 'clock_in');
+      expect(state.pendingCount, 2);
+      expect(state.canClock, isTrue);
+    });
+
+    test('multi-day offline pending records alternate actions chronologically', () {
+      final t1 = DateTime.utc(2026, 10, 5, 8);
+      final t2 = DateTime.utc(2026, 10, 5, 17);
+      final t3 = DateTime.utc(2026, 10, 6, 8, 30);
+
+      final rec1 = ClockingRecord(type: 'CLOCK IN', time: t1, localRecordId: 'r1', syncStatus: 'pending');
+      final rec2 = ClockingRecord(type: 'CLOCK OUT', time: t2, localRecordId: 'r2', syncStatus: 'pending');
+      final rec3 = ClockingRecord(type: 'CLOCK IN', time: t3, localRecordId: 'r3', syncStatus: 'pending');
+
+      final state = MobileClockingState(
+        context: context,
+        records: [rec1, rec2, rec3],
+      );
+
+      expect(state.nextAction, 'clock_out');
+      expect(state.pendingCount, 3);
+      expect(state.canClock, isTrue);
+    });
+
     test('out-of-order pending events block additional clock actions', () {
       final state = MobileClockingState(
         context: context,

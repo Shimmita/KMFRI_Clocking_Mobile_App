@@ -149,31 +149,27 @@ class MobileClockingRepository {
     if (!['clock_in', 'clock_out'].contains(action)) {
       throw ArgumentError.value(action, 'action', 'Unsupported clock action.');
     }
-    final position = context.locationRequired || context.geofenceEnabled
-        ? await _getCurrentPosition()
-        : null;
-    final isWithinGeofence = position == null
-        ? !context.geofenceEnabled
-        : _isWithinGeofence(context, position);
-    if (context.geofenceEnabled &&
-        !isWithinGeofence &&
-        !context.canClockOutside) {
+    final position = await _getCurrentPosition();
+    final isWithinStation = _isWithinGeofence(context, position);
+
+    if (!isWithinStation && !context.canClockOutside) {
+      final distance = GeofenceDistance.metersBetween(
+        position.latitude,
+        position.longitude,
+        context.stationLatitude,
+        context.stationLongitude,
+      );
       throw StateError(
-        'You are outside the assigned station premises and are not authorized to clock outside.',
+        'You are outside the assigned station premises (${context.stationName}, ${distance}m away) and are not authorized to clock outside.',
       );
     }
 
     String? outsideLocation;
-    if (!isWithinGeofence && position != null && context.canClockOutside) {
+    if (!isWithinStation && context.canClockOutside) {
       outsideLocation = await _resolveOutsideLocation(
         position.latitude,
         position.longitude,
       );
-      if (outsideLocation == null || outsideLocation.trim().isEmpty) {
-        throw StateError(
-          'Outside clocking place could not be resolved. Please verify your GPS signal and try again.',
-        );
-      }
     }
 
     final time = DateTime.now().toUtc();
@@ -185,12 +181,12 @@ class MobileClockingRepository {
       deviceId: deviceId,
       installationId: identity.installationId,
       station: context.stationName,
-      latitude: position?.latitude,
-      longitude: position?.longitude,
+      latitude: position.latitude,
+      longitude: position.longitude,
       outsideLocation: outsideLocation,
-      locationName: isWithinGeofence ? 'IN PREMISE' : outsideLocation,
-      clockedOutside: !isWithinGeofence,
-      withinPremise: isWithinGeofence,
+      locationName: isWithinStation ? 'IN PREMISE' : outsideLocation,
+      clockedOutside: !isWithinStation,
+      withinPremise: isWithinStation,
       syncStatus: 'pending',
       syncMessage: outsideLocation,
       createdAt: time,
@@ -212,7 +208,6 @@ class MobileClockingRepository {
     if (record.latitude != null &&
         record.longitude != null &&
         context != null &&
-        context.geofenceEnabled &&
         context.canClockOutside &&
         !_isWithinCoordinates(context, record.latitude!, record.longitude!) &&
         (record.outsideLocation == null ||
@@ -228,16 +223,18 @@ class MobileClockingRepository {
     }
 
     if (context != null &&
-        context.geofenceEnabled &&
         context.canClockOutside &&
         record.latitude != null &&
         record.longitude != null &&
         !_isWithinCoordinates(context, record.latitude!, record.longitude!) &&
         (resolvedRecord.outsideLocation == null ||
             resolvedRecord.outsideLocation!.trim().isEmpty)) {
-      throw const FormatException(
-        'Outside clocking place could not be resolved. Restore connectivity and try again.',
+      resolvedRecord = record.copyWith(
+        outsideLocation: 'Outside location unresolved',
+        locationName: 'Outside location unresolved',
+        syncMessage: 'Outside location unresolved',
       );
+      await saveRecord(resolvedRecord);
     }
 
     final response = await _api.synchronizeAttendance(
@@ -265,8 +262,10 @@ class MobileClockingRepository {
           : serverOutsideLocation;
       resolvedRecord = resolvedRecord.copyWith(
         clearOutsideLocation: !clockedOutside,
-        outsideLocation: resolvedLocation,
-        locationName: clockedOutside ? resolvedLocation : 'In Premise',
+        outsideLocation: clockedOutside ? resolvedLocation : null,
+        locationName: clockedOutside
+            ? (resolvedLocation ?? resolvedRecord.locationName)
+            : 'In Premise',
         clockedOutside: clockedOutside,
         withinPremise: !clockedOutside,
       );
@@ -397,10 +396,9 @@ class MobileClockingRepository {
     double latitude,
     double longitude,
   ) {
-    if (!context.geofenceEnabled) return true;
     if (context.radiusMeters <= 0 ||
         (context.stationLatitude == 0 && context.stationLongitude == 0)) {
-      throw StateError('The assigned station geofence is not configured.');
+      return true;
     }
 
     final distance = GeofenceDistance.metersBetween(
@@ -412,6 +410,11 @@ class MobileClockingRepository {
     return distance <= context.radiusMeters;
   }
 
+  Future<String?> resolveOutsideLocationName(
+    double latitude,
+    double longitude,
+  ) => _resolveOutsideLocation(latitude, longitude);
+
   Future<String?> _resolveOutsideLocation(
     double latitude,
     double longitude,
@@ -421,6 +424,7 @@ class MobileClockingRepository {
         latitude,
         longitude,
       );
+      if (location == null) return null;
       final normalized = location.trim();
       if (normalized.isEmpty ||
           normalized.toLowerCase() == 'unknown' ||

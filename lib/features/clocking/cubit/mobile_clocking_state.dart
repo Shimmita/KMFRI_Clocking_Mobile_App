@@ -63,9 +63,14 @@ class MobileClockingState {
   String? get nextAction {
     final currentContext = context;
     if (currentContext == null) return null;
+
+    final pendingRecords = records
+        .where((record) => record.syncStatus == 'pending')
+        .toList()
+      ..sort((a, b) => a.time.compareTo(b.time));
+
     var action = currentContext.nextAction;
-    for (final record in records) {
-      if (record.syncStatus != 'pending') continue;
+    for (final record in pendingRecords) {
       if (record.action != action) return null;
       action = action == 'clock_in' ? 'clock_out' : 'clock_in';
     }

@@ -41,6 +41,7 @@ void main() {
         'latitude': -1.286389,
         'longitude': 36.817223,
       });
+      expect(payload['isWithinGeofence'], isNull);
     });
 
     test('inside premise server metadata clears outside location', () {
